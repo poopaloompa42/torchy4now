@@ -69,7 +69,7 @@ def input(key):
     elif key == 'space':
         resolve_turn()
     elif key == 'w':
-    player.play_anim('walk')
+        player.play_anim('walk')
 
- app.run()
+app.run()
 
