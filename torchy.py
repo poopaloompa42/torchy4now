@@ -2,7 +2,6 @@ from ursina import *
 from ursina.prefabs.health_bar import HealthBar
 from math import radians, sin, cos
 
-# === PauseMenu CLASS DEFINITION ===
 class PauseMenu(Entity):
     def __init__(self, **kwargs):
         super().__init__(ignore_paused=True, **kwargs)
@@ -46,20 +45,16 @@ class PauseMenu(Entity):
             application.paused = not application.paused
             self.menu.enabled = application.paused
 
-# === Game Setup ===
-window.borderless = False  # allow window resizing
-window.size = (1280, 720)  # default size
-window.resizable = True  # allow manual resizing
-# window.fullscreen = False  # optional toggle — removed to avoid .windowed_size error
+window.borderless = False
+window.size = (1280, 720)
+window.resizable = True
 
 app = Ursina()
 
-# === Background Music ===
 from ursina import Audio
 battle_music = Audio('assets/audio/torchybeats.mp3', loop=True, autoplay=True)
 battle_music.volume = 1.0
 
-# === Background ===
 background = Entity(
     model='quad',
     texture='assets/world/2ddungeon.png',
@@ -67,10 +62,10 @@ background = Entity(
     z=10
 )
 
-# === Player ===
-player = Entity(
-    model='quad',
-    texture='assets/sprites/player1/babytorchy.png',
+player = Animation(
+    'sprites/player1/idle/Prototype fire ball man dude',
+    fps=6,
+    loop=True,
     scale=(1.5, 2),
     position=(-4, -2, 0),
     z=-1
@@ -84,7 +79,6 @@ player.health_bar = HealthBar(
 )
 player.health_bar.value = 100
 
-# === Enemy ===
 enemy = Entity(
     model='quad',
     texture='assets/sprites/enemies/idle/Wizard2.png',
@@ -101,15 +95,12 @@ enemy.health_bar = HealthBar(
 )
 enemy.health_bar.value = 150
 
-# === Camera / Light ===
 camera.orthographic = True
 camera.fov = 20
 camera.position = (0, 0)
 DirectionalLight(y=2, rotation=(45, -45, 0))
 
-# === Fuel Bar ===
-# zone_level and fuel must be declared before this
-zone_level = 0  # 0 = low, 1 = mid, 2 = high
+zone_level = 0
 fuel = 0
 
 fuel_bar = HealthBar(
@@ -120,9 +111,6 @@ fuel_bar = HealthBar(
     bar_color=color.orange
 )
 fuel_bar.value = fuel
-
-# === Radial Menu ===
-
 
 zone_label = Text(text=f"Zone: {zone_level}", position=(-0.05, 0.35), scale=2, parent=camera.ui)
 fuel_label = Text(text=f"Fuel: {fuel}", position=(-0.05, 0.3), scale=2, parent=camera.ui)
@@ -136,8 +124,6 @@ def attack():
     enemy.health_bar.value = max(0, enemy.health_bar.value - 10)
     print("Enemy takes 10 damage!")
     Audio('assets/audio/hit_sound.mp3')
-
-    # Shake camera for feedback
     camera.shake(duration=0.15, magnitude=1.0)
 
     fuel += 1
@@ -149,7 +135,7 @@ def attack():
         enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
         destroy(enemy)
         destroy(enemy.health_bar)
-        radial_buttons[0].enabled = False  # disables Attack button
+        radial_buttons[0].enabled = False
 
 def zone_action():
     global fuel, zone_level
@@ -166,8 +152,6 @@ def zone_action():
     fuel_label.text = f"Fuel: {fuel}"
     fuel_bar.value = fuel
     zone_label.text = f"Zone: {zone_level}"
-
-    # Visually move the player up a bit for each zone level
     player.y = -2 + zone_level * 0.5
 
 def placeholder_action(name):
@@ -199,7 +183,6 @@ for i, (label, action) in enumerate(radial_options):
     )
     radial_buttons.append(btn)
 
-# === Input Logic ===
 def input(key):
     global selected_index
 
@@ -217,7 +200,6 @@ def input(key):
         else:
             print("Spacebar with no selection")
 
-# === Update Highlighting ===
 def update():
     global selected_index
     for i, btn in enumerate(radial_buttons):
@@ -227,8 +209,5 @@ def update():
         else:
             btn.color = highlight_color if i == selected_index else normal_color
 
-# === Add PauseMenu ===
 pause_menu = PauseMenu()
-
-# === Run Game ===
 app.run()
