@@ -40,7 +40,7 @@ class PauseMenu(Entity):
                 self.lock_mouse_on_resume = mouse.locked
                 mouse.locked = False
             else:
-                self.lock_mouse_on_resume = mouse.locked
+                mouse.locked = self.lock_mouse_on_resume
 
             application.paused = not application.paused
             self.menu.enabled = application.paused
@@ -55,6 +55,7 @@ turn = 'player'
 
 def set_idle_animation():
     enemy.enabled = True
+
 def enemy_turn():
     global turn
     print("Enemy attacks!")
@@ -174,13 +175,6 @@ def attack():
         turn = 'enemy'
         invoke(enemy_turn, delay=1.0)
 
-    if enemy.health_bar.value == 0:
-        print("Wizard defeated!")
-        enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
-        destroy(enemy)
-        destroy(enemy.health_bar)
-        radial_buttons[0].enabled = False
-
 def zone_action():
     global fuel, zone_level
     if fuel > 0 and zone_level < 2:
@@ -268,7 +262,7 @@ def input(key):
             radial_buttons[selected_index].on_click()
         else:
             print("Spacebar with no selection")
-
+            
 ability_buttons = []
 
 def show_ability_radial():
@@ -309,3 +303,4 @@ def reset_game():
 
 pause_menu = PauseMenu()
 app.run()
+
