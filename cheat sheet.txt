@@ -1,0 +1,71 @@
+okay i need to commit then
+
+
+ChatGPT said:
+Yep! You're just one command away from locking in your work. Here's exactly what to type:
+
+🟦 Step-by-Step: Commit Your Changes
+Make sure you’re in the project folder:
+
+bash
+Copy
+Edit
+cd "C:\Users\elamb\OneDrive\Desktop\torchy demo"
+Then:
+
+bash
+Copy
+Edit
+git add .
+That stages all the changes.
+
+Then:
+
+bash
+Copy
+Edit
+git commit -m "Added animated sprite system and turn-based combat prototype"
+That saves the change as a snapshot in your Git history.
+
+Then:
+
+bash
+Copy
+Edit
+git push
+That sends it up to GitHub so your homie can pull it down.
+
+Let me know what happens or if it throws a message—we’re right at the "ship it" moment. 🚀
+
+
+
+
+
+
+
+You said:
+PS C:\Users\elamb\OneDrive\Desktop\torchy demo> git add .
+warning: in the working copy of 'torchy.tiled-session', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'untitled.tiled-session', LF will be replaced by CRLF the next time Git touches it
+PS C:\Users\elamb\OneDrive\Desktop\torchy demo>
+
+
+ChatGPT said:
+Perfect. Those warnings are totally normal—they’re just Git saying:
+
+“Hey, I’ll convert line endings from Unix-style (LF) to Windows-style (CRLF) if needed later.”
+
+You can ignore them completely.
+
+✅ Now continue with the commit:
+bash
+Copy
+Edit
+git commit -m "Added animated sprite system and turn-based combat prototype"
+Then:
+
+bash
+Copy
+Edit
+git push
+That will publish everything to your GitHub repo so your partner can pull it down and see the new magic in motion. Let me know how it goes!
