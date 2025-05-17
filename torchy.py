@@ -40,7 +40,7 @@ class PauseMenu(Entity):
                 self.lock_mouse_on_resume = mouse.locked
                 mouse.locked = False
             else:
-                self.lock_mouse_on_resume = mouse.locked
+                mouse.locked = self.lock_mouse_on_resume
 
             application.paused = not application.paused
             self.menu.enabled = application.paused
@@ -50,6 +50,34 @@ window.size = (1280, 720)
 window.resizable = True
 
 app = Ursina()
+
+turn = 'player'
+
+def set_idle_animation():
+    enemy.enabled = True
+
+def enemy_turn():
+    global turn
+    print("Enemy attacks!")
+
+    enemy.enabled = False
+    attack_anim = Animation(
+        'sprites/enemies/enemy attack/Wizard attack prototype',
+        fps=10,
+        loop=False,
+        scale=(4, 6),
+        position=(4, -1, 0),
+        z=-1
+    )
+    invoke(destroy, attack_anim, delay=1.2)
+    invoke(set_idle_animation, delay=1.2)
+    player.health_bar.value = max(0, player.health_bar.value - 10)
+    if player.health_bar.value == 0:
+        print("Torchy defeated!")
+        destroy(player)
+        destroy(player.health_bar)
+        show_reset_prompt()
+    turn = 'player'
 
 from ursina import Audio
 battle_music = Audio('assets/audio/torchybeats.mp3', loop=True, autoplay=True)
@@ -79,9 +107,10 @@ player.health_bar = HealthBar(
 )
 player.health_bar.value = 100
 
-enemy = Entity(
-    model='quad',
-    texture='assets/sprites/enemies/idle/Wizard2.png',
+enemy = Animation(
+    'sprites/enemies/idle/idle glow/Wizard staff glow',
+    fps=6,
+    loop=True,
     scale=(4, 6),
     position=(4, -1, 0),
     z=-1
@@ -116,7 +145,11 @@ zone_label = Text(text=f"Zone: {zone_level}", position=(-0.05, 0.35), scale=2, p
 fuel_label = Text(text=f"Fuel: {fuel}", position=(-0.05, 0.3), scale=2, parent=camera.ui)
 
 def attack():
-    global fuel
+    global fuel, turn
+    if turn != 'player':
+        print("It's not your turn!")
+        return
+
     if not enemy.enabled:
         print("Enemy is already defeated.")
         return
@@ -135,7 +168,12 @@ def attack():
         enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
         destroy(enemy)
         destroy(enemy.health_bar)
-        radial_buttons[0].enabled = False
+        for btn in radial_buttons:
+            btn.enabled = False
+        show_reset_prompt()
+    else:
+        turn = 'enemy'
+        invoke(enemy_turn, delay=1.0)
 
 def zone_action():
     global fuel, zone_level
@@ -157,9 +195,34 @@ def zone_action():
 def placeholder_action(name):
     print(f"{name} action selected (not implemented)")
 
+def blast():
+    global fuel, turn
+    if turn != 'player':
+        print("It's not your turn!")
+        return
+
+    if not enemy.enabled:
+        print("Enemy is already defeated.")
+        return
+
+    print("Torchy uses BLAST!")
+    camera.shake(duration=0.3, magnitude=2.0)
+    enemy.health_bar.value = max(0, enemy.health_bar.value - 50)
+    if enemy.health_bar.value == 0:
+        print("Wizard defeated by blast!")
+        enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
+        destroy(enemy)
+        destroy(enemy.health_bar)
+        for btn in radial_buttons:
+            btn.enabled = False
+        show_reset_prompt()
+    else:
+        turn = 'enemy'
+        invoke(enemy_turn, delay=1.0)
+
 radial_options = [
     ('Attack', attack),
-    ('Abilities', lambda: placeholder_action('Abilities')),
+    ('Abilities', lambda: show_ability_radial()),
     ('Zone', zone_action),
     ('Inventory', lambda: placeholder_action('Inventory'))
 ]
@@ -199,6 +262,27 @@ def input(key):
             radial_buttons[selected_index].on_click()
         else:
             print("Spacebar with no selection")
+            
+ability_buttons = []
+
+def show_ability_radial():
+    for btn in ability_buttons:
+        destroy(btn)
+    ability_buttons.clear()
+    labels = ['Blast', '', '', '']
+    actions = [blast, lambda: print("Unused slot"), lambda: print("Unused slot"), lambda: print("Unused slot")]
+    for i in range(4):
+        angle = radians(90 * i)
+        pos = Vec2(cos(angle), sin(angle)) * 0.1 + Vec2(.7, -.2)
+        btn = Button(
+            text=labels[i],
+            scale=(.08, .08),
+            position=pos,
+            parent=camera.ui,
+            color=color.gray,
+            on_click=actions[i]
+        )
+        ability_buttons.append(btn)
 
 def update():
     global selected_index
@@ -209,5 +293,14 @@ def update():
         else:
             btn.color = highlight_color if i == selected_index else normal_color
 
+def show_reset_prompt():
+    Text("Game Over!", origin=(0,0), scale=2, y=0.2, parent=camera.ui)
+    Button(text='Reset', scale=(.2, .1), y=-0.1, parent=camera.ui, on_click=reset_game)
+
+def reset_game():
+    application.quit()
+    os.execl(sys.executable, sys.executable, *sys.argv)
+
 pause_menu = PauseMenu()
 app.run()
+
