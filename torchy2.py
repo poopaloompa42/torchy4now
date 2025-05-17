@@ -1,12 +1,8 @@
 from ursina import *
 from ursina.prefabs.health_bar import HealthBar
+from math import radians, sin, cos
 
-# === PauseMenu definition (same as above) ===
-# [Insert the class code from above here]
-from ursina import *
-from ursina.prefabs.health_bar import HealthBar
-
-# === PauseMenu CLASS DEFINITION GOES HERE ===
+# === PauseMenu CLASS DEFINITION ===
 class PauseMenu(Entity):
     def __init__(self, **kwargs):
         super().__init__(ignore_paused=True, **kwargs)
@@ -50,6 +46,7 @@ class PauseMenu(Entity):
             application.paused = not application.paused
             self.menu.enabled = application.paused
 
+# === Game Setup ===
 app = Ursina()
 
 # === Background ===
@@ -88,7 +85,58 @@ camera.fov = 20
 camera.position = (0, 0)
 DirectionalLight(y=2, rotation=(45, -45, 0))
 
+# === Radial Menu ===
+radial_options = ['Attack', 'Abilities', 'Zone', 'Inventory']
+radial_buttons = []
+selected_index = None
+highlight_color = color.azure
+normal_color = color.dark_gray
+hover_color = color.orange
+
+for i, option in enumerate(radial_options):
+    angle = radians(90 * i)
+    pos = Vec2(cos(angle), sin(angle)) * 0.1 + Vec2(.7, -.4)
+    btn = Button(
+        text=option,
+        scale=(.1, .1),
+        position=pos,
+        parent=camera.ui,
+        color=normal_color,
+        on_click=lambda o=option: print(f"Selected: {o}")
+    )
+    radial_buttons.append(btn)
+
+# === Input Logic ===
+def input(key):
+    global selected_index
+
+    directions = ['up', 'right', 'down', 'left']
+    if key in ('w', 'arrow up'):
+        selected_index = 0
+    elif key in ('d', 'arrow right'):
+        selected_index = 1
+    elif key in ('s', 'arrow down'):
+        selected_index = 2
+    elif key in ('a', 'arrow left'):
+        selected_index = 3
+    elif key == 'space':
+        if selected_index is not None:
+            radial_buttons[selected_index].on_click()
+        else:
+            print("Spacebar with no selection")
+
+# === Update Highlighting ===
+def update():
+    global selected_index
+    for i, btn in enumerate(radial_buttons):
+        if btn.hovered:
+            selected_index = i
+            btn.color = hover_color
+        else:
+            btn.color = highlight_color if i == selected_index else normal_color
+
 # === Add PauseMenu ===
 pause_menu = PauseMenu()
 
+# === Run Game ===
 app.run()
