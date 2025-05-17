@@ -1,12 +1,8 @@
 from ursina import *
 from ursina.prefabs.health_bar import HealthBar
+from math import radians, sin, cos
 
-# === PauseMenu definition (same as above) ===
-# [Insert the class code from above here]
-from ursina import *
-from ursina.prefabs.health_bar import HealthBar
-
-# === PauseMenu CLASS DEFINITION GOES HERE ===
+# === PauseMenu CLASS DEFINITION ===
 class PauseMenu(Entity):
     def __init__(self, **kwargs):
         super().__init__(ignore_paused=True, **kwargs)
@@ -45,12 +41,23 @@ class PauseMenu(Entity):
                 self.lock_mouse_on_resume = mouse.locked
                 mouse.locked = False
             else:
-                mouse.locked = self.lock_mouse_on_resume
+                self.lock_mouse_on_resume = mouse.locked
 
             application.paused = not application.paused
             self.menu.enabled = application.paused
 
+# === Game Setup ===
+window.borderless = False  # allow window resizing
+window.size = (1280, 720)  # default size
+window.resizable = True  # allow manual resizing
+# window.fullscreen = False  # optional toggle — removed to avoid .windowed_size error
+
 app = Ursina()
+
+# === Background Music ===
+from ursina import Audio
+battle_music = Audio('assets/audio/torchybeats.mp3', loop=True, autoplay=True)
+battle_music.volume = 1.0
 
 # === Background ===
 background = Entity(
@@ -68,8 +75,14 @@ player = Entity(
     position=(-4, -2, 0),
     z=-1
 )
-player.health_bg = Entity(parent=player, model='quad', color=color.rgb(100, 0, 0), scale=(1.5, 0.1), y=1.2, z=-0.01)
-player.health_bar = HealthBar(parent=player, y=1.2, scale=(1.5, 0.1), max_value=100, bar_color=color.lime)
+player.health_bar = HealthBar(
+    parent=camera.ui,
+    position=Vec2(-0.7, 0.45),
+    scale=(0.6, 0.05),
+    max_value=100,
+    bar_color=color.lime
+)
+player.health_bar.value = 100
 
 # === Enemy ===
 enemy = Entity(
@@ -79,7 +92,13 @@ enemy = Entity(
     position=(4, -1, 0),
     z=-1
 )
-enemy.health_bar = HealthBar(parent=enemy, y=3.5, scale=(2.5, 0.15), max_value=150, bar_color=color.red)
+enemy.health_bar = HealthBar(
+    parent=camera.ui,
+    position=Vec2(0.7, 0.45),
+    scale=(0.6, 0.05),
+    max_value=150,
+    bar_color=color.red
+)
 enemy.health_bar.value = 150
 
 # === Camera / Light ===
@@ -88,7 +107,128 @@ camera.fov = 20
 camera.position = (0, 0)
 DirectionalLight(y=2, rotation=(45, -45, 0))
 
+# === Fuel Bar ===
+# zone_level and fuel must be declared before this
+zone_level = 0  # 0 = low, 1 = mid, 2 = high
+fuel = 0
+
+fuel_bar = HealthBar(
+    parent=camera.ui,
+    position=Vec2(0, 0.38),
+    scale=(0.4, 0.03),
+    max_value=10,
+    bar_color=color.orange
+)
+fuel_bar.value = fuel
+
+# === Radial Menu ===
+
+
+zone_label = Text(text=f"Zone: {zone_level}", position=(-0.05, 0.35), scale=2, parent=camera.ui)
+fuel_label = Text(text=f"Fuel: {fuel}", position=(-0.05, 0.3), scale=2, parent=camera.ui)
+
+def attack():
+    global fuel
+    if not enemy.enabled:
+        print("Enemy is already defeated.")
+        return
+
+    enemy.health_bar.value = max(0, enemy.health_bar.value - 10)
+    print("Enemy takes 10 damage!")
+    Audio('assets/audio/hit_sound.mp3')
+
+    # Shake camera for feedback
+    camera.shake(duration=0.15, magnitude=1.0)
+
+    fuel += 1
+    fuel_label.text = f"Fuel: {fuel}"
+    fuel_bar.value = fuel
+
+    if enemy.health_bar.value == 0:
+        print("Wizard defeated!")
+        enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
+        destroy(enemy)
+        destroy(enemy.health_bar)
+        radial_buttons[0].enabled = False  # disables Attack button
+
+def zone_action():
+    global fuel, zone_level
+    if fuel > 0 and zone_level < 2:
+        fuel -= 1
+        zone_level += 1
+        print(f"Zone raised to {zone_level}, fuel remaining: {fuel}")
+    else:
+        if fuel == 0:
+            print("Not enough fuel to raise zone!")
+        elif zone_level >= 2:
+            print("Already at max zone!")
+
+    fuel_label.text = f"Fuel: {fuel}"
+    fuel_bar.value = fuel
+    zone_label.text = f"Zone: {zone_level}"
+
+    # Visually move the player up a bit for each zone level
+    player.y = -2 + zone_level * 0.5
+
+def placeholder_action(name):
+    print(f"{name} action selected (not implemented)")
+
+radial_options = [
+    ('Attack', attack),
+    ('Abilities', lambda: placeholder_action('Abilities')),
+    ('Zone', zone_action),
+    ('Inventory', lambda: placeholder_action('Inventory'))
+]
+
+radial_buttons = []
+selected_index = None
+highlight_color = color.azure
+normal_color = color.dark_gray
+hover_color = color.orange
+
+for i, (label, action) in enumerate(radial_options):
+    angle = radians(90 * i)
+    pos = Vec2(cos(angle), sin(angle)) * 0.1 + Vec2(.7, -.4)
+    btn = Button(
+        text=label,
+        scale=(.1, .1),
+        position=pos,
+        parent=camera.ui,
+        color=normal_color,
+        on_click=action
+    )
+    radial_buttons.append(btn)
+
+# === Input Logic ===
+def input(key):
+    global selected_index
+
+    if key in ('w', 'arrow up'):
+        selected_index = 0
+    elif key in ('d', 'arrow right'):
+        selected_index = 1
+    elif key in ('s', 'arrow down'):
+        selected_index = 2
+    elif key in ('a', 'arrow left'):
+        selected_index = 3
+    elif key == 'space':
+        if selected_index is not None:
+            radial_buttons[selected_index].on_click()
+        else:
+            print("Spacebar with no selection")
+
+# === Update Highlighting ===
+def update():
+    global selected_index
+    for i, btn in enumerate(radial_buttons):
+        if btn.hovered:
+            selected_index = i
+            btn.color = hover_color
+        else:
+            btn.color = highlight_color if i == selected_index else normal_color
+
 # === Add PauseMenu ===
 pause_menu = PauseMenu()
 
+# === Run Game ===
 app.run()
