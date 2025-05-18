@@ -1,6 +1,7 @@
 from ursina import *
 from ursina.prefabs.health_bar import HealthBar
 from math import radians, sin, cos
+import os, sys
 
 class PauseMenu(Entity):
     def __init__(self, **kwargs):
@@ -67,19 +68,35 @@ def enemy_turn():
         loop=False,
         scale=(4, 6),
         position=(4, -1, 0),
-        z=-1
+        z=-0.5
     )
-    invoke(destroy, attack_anim, delay=1.2)
-    invoke(set_idle_animation, delay=1.2)
-    player.health_bar.value = max(0, player.health_bar.value - 10)
-    if player.health_bar.value == 0:
-        print("Torchy defeated!")
-        destroy(player)
-        destroy(player.health_bar)
-        show_reset_prompt()
+
+    def spawn_projectile():
+        projectile = Animation(
+            'sprites/Generic Stuff/Wizard attack projectile',
+            fps=6,
+            loop=False,
+            position=(3.5, -1, -0.6),
+            scale=(1.5, 1.5),
+        )
+        projectile.animate_position(Vec3(-4, -2, -0.6), duration=1.2, curve=curve.linear)
+
+        def hit_player():
+            destroy(projectile)
+            player.health_bar.value = max(0, player.health_bar.value - 10)
+            if player.health_bar.value == 0:
+                print("Torchy defeated!")
+                destroy(player)
+                destroy(player.health_bar)
+                show_reset_prompt()
+
+        invoke(hit_player, delay=1.2)
+
+    invoke(spawn_projectile, delay=0.5)
+    invoke(destroy, attack_anim, delay=1.4)
+    invoke(set_idle_animation, delay=1.4)
     turn = 'player'
 
-from ursina import Audio
 battle_music = Audio('assets/audio/torchybeats.mp3', loop=True, autoplay=True)
 battle_music.volume = 1.0
 
@@ -156,7 +173,6 @@ def attack():
 
     enemy.health_bar.value = max(0, enemy.health_bar.value - 10)
     print("Enemy takes 10 damage!")
-    Audio('assets/audio/hit_sound.mp3')
     camera.shake(duration=0.15, magnitude=1.0)
 
     fuel += 1
@@ -207,6 +223,16 @@ def blast():
 
     print("Torchy uses BLAST!")
     camera.shake(duration=0.3, magnitude=2.0)
+    hit_anim = Animation(
+        'sprites/enemies/enemy gets hit/Wizard getting hit',
+        fps=8,
+        loop=False,
+        scale=(4, 6),
+        position=enemy.position,
+        z=-0.9
+    )
+    invoke(destroy, hit_anim, delay=0.6)
+
     enemy.health_bar.value = max(0, enemy.health_bar.value - 50)
     if enemy.health_bar.value == 0:
         print("Wizard defeated by blast!")
@@ -262,7 +288,7 @@ def input(key):
             radial_buttons[selected_index].on_click()
         else:
             print("Spacebar with no selection")
-            
+
 ability_buttons = []
 
 def show_ability_radial():
@@ -303,4 +329,3 @@ def reset_game():
 
 pause_menu = PauseMenu()
 app.run()
-
