@@ -1,9 +1,10 @@
 from ursina import *
 
 class InventorySystem:
-    def __init__(self, player, zone_system):
+    def __init__(self, player, zone_system, ui_manager):
         self.player = player
         self.zone_system = zone_system
+        self.ui_manager = ui_manager
         self.items = ['Vodka'] * 12
         self.buttons = []
         self.menu = None
@@ -33,11 +34,13 @@ class InventorySystem:
     def use_item(self, index):
         item = self.items[index]
         if item == 'Vodka':
-            self.player.health_bar.value = min(100, self.player.health_bar.value + 50)
+            self.player.hp = min(self.player.max_hp, self.player.hp + 50)
             self.zone_system.add_fuel(2)
             print("Torchy drank Vodka, healed 50 and gained 2 fuel!")
+            self.ui_manager.update_hp()  # <-- now safe to use
 
         destroy(self.menu)
         for b in self.buttons:
             destroy(b)
         self.buttons.clear()
+

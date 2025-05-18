@@ -1,44 +1,53 @@
 from ursina import *
-#from torchy import start_battle
+import os, sys
 
 app = Ursina()
+Text.default_font = 'assets/sprites/font/Augusta.ttf'
 
-# === SPLASH FLOW ===
 def show_splash_screens():
     print('Splash screen flow started')
 
-    def show_chatgpt_credit():
-        print('Showing ChatGPT splash')
-        SplashScreen(texture='assets/sprites/credits/ChatGPTsplash.png', duration=3, on_destroy=show_us_credit)
+    def show_ursina_credit():
+        print('Showing Ursina splash')
+        SplashScreen(texture='ursina_logo', duration=3, dev_text='Made with Ursina Engine', on_destroy=show_us_credit)
 
     def show_us_credit():
         print('Showing dev splash')
-        SplashScreen(texture='assets/sprites/credits/us.png', duration=3, on_destroy=show_ursina_credit)
+        SplashScreen(texture='assets/sprites/credits/us.png', duration=3, on_destroy=show_chatgpt_credit)
 
-    def show_ursina_credit():
-        print('Showing Ursina splash')
-        SplashScreen(texture='ursina_logo', duration=3, dev_text='Made with Ursina Engine', on_destroy=show_title_screen)
+    def show_chatgpt_credit():
+        print('Showing ChatGPT splash')
+        SplashScreen(texture='assets/sprites/credits/ChatGPTsplash.png', duration=3, on_destroy=launch_title)
 
-    show_chatgpt_credit()
+    show_ursina_credit()
 
 
-# === SPLASH CLASS ===
+def launch_title():
+    print("Launching title screen...")
+    import subprocess
+    subprocess.Popen(['python', 'titlescreen.py'])
+    application.quit()
+
+
 class SplashScreen(Sprite):
     def __init__(self, texture, duration=3, on_destroy=None, dev_text=None, **kwargs):
         super().__init__(
             parent=camera.ui,
             texture=texture,
             world_z=camera.overlay.z - 1,
-            scale=(camera.aspect_ratio * 2, 2),
+            scale=(0.45, 0.25),  # 25% scale
+            position=(0, 0),
+            origin=(0, 0),
             color=color.clear,
             **kwargs
         )
+
+
         camera.overlay.animate_color(color.black, duration=.1)
         self.animate_color(color.white, duration=1, delay=0.5, curve=curve.out_quint)
         self._on_destroy_callback = on_destroy
         invoke(self.finish, delay=duration)
 
-        # Optional dev text that fades in
         if dev_text:
             self.dev_text = Text(
                 text=dev_text,
@@ -46,6 +55,7 @@ class SplashScreen(Sprite):
                 y=-0.35,
                 scale=1.5,
                 origin=(0, 0),
+                anchor=(0, 0),
                 color=color.clear
             )
             invoke(self.dev_text.animate_color, color.red, delay=1.8, duration=1.2, curve=curve.linear)
@@ -63,26 +73,7 @@ class SplashScreen(Sprite):
             self._on_destroy_callback()
 
 
-# === TITLE SCREEN ===
-def show_title_screen():
-    print('Showing title screen')
 
-    for e in scene.entities:
-        destroy(e)
-
-    # Fix camera for 2D view
-    camera.orthographic = True
-    camera.fov = 20
-    camera.position = (0, 0)
-
-    Entity(model='quad', texture='assets/world/2ddungeon.png', scale=(32, 18), z=10)
-
-    Text("TORCHY", y=0.3, scale=3, origin=(0,0), color=color.white)
-    Button(text="Demo", scale=(.2, .1), y=-.2, on_click=start_battle)
-
-
-
-# === RUN GAME ===
+# === RUN SPLASH SEQUENCE ===
 show_splash_screens()
 app.run()
-

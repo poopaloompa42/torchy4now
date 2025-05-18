@@ -69,7 +69,7 @@ battle_music = Audio('assets/audio/torchybeats.mp3', loop=True, autoplay=True)
 battle_music.volume = 1.0
 
 # Inventory
-inventory_system = InventorySystem(player, zone_system)
+inventory_system = InventorySystem(player, zone_system, ui_manager)
 
 enemy = WizardEnemy(position=(4, ZONES[1], 0))
 
