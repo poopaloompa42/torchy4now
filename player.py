@@ -6,7 +6,8 @@ class Player(Animation):
             'sprites/player1/idle/torchy', 
             fps=6,
             loop=True,
-            scale=(1.5, 2),
+            scale=(2, 2.7),
+            position=(-4.5, -2.5, 0),
             z=-1,
             **kwargs
         )

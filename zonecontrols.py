@@ -19,7 +19,7 @@ class ZoneControls:
         self.fuel_bar.value = self.fuel
 
         self.zone_label = Text(
-            text=f"Zone: {self.zone_level}",
+            text=f"ZONE: {self.zone_level}",
             position=(-0.05, 0.35),
             scale=2,
             parent=camera.ui
@@ -32,7 +32,7 @@ class ZoneControls:
         )
 
         self.zone_down_button = Button(
-            text='Lower Zone',
+            text='Take Flight',
             parent=camera.ui,
             position=Vec2(-0.7, -0.3),
             scale=(.15, .08),

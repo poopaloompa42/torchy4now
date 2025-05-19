@@ -7,7 +7,7 @@ class WizardEnemy(Animation):
             'sprites/enemies/idle/idle glow/Wizard staff glow',
             fps=6,
             loop=True,
-            scale=(4, 6),
+            scale=(2, 3),
             z=-1,
             **kwargs
         )
@@ -22,3 +22,5 @@ class WizardEnemy(Animation):
             bar_color=color.red
         )
         self.health_bar.value = self.hp
+
+# After the class is defined

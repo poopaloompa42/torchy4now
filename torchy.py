@@ -46,7 +46,7 @@ temp_player = Player()
 zone_system = ZoneControls(temp_player)
 
 # Now create the real player at the correct zone height
-player = Player(position=(-4, zone_system.get_zone_y(), 0))
+player = Player(position=(-7.5, zone_system.get_zone_y() - 6, 0))
 zone_system.set_player(player)
 
 destroy(temp_player)
@@ -71,7 +71,7 @@ battle_music.volume = 1.0
 # Inventory
 inventory_system = InventorySystem(player, zone_system, ui_manager)
 
-enemy = WizardEnemy(position=(4, ZONES[1], 0))
+enemy = WizardEnemy(position=(7.5, ZONES[1] - 5.3, -0.2))
 
 ui_manager = UIManager(player)
 
@@ -84,9 +84,8 @@ camera.fov = 20
 camera.position = (0, 0)
 DirectionalLight(y=2, rotation=(45, -45, 0))
 
-
 ability_buttons = []
- # 
+ 
 
 radial_options = [
     ('Attack', lambda: attack()),
@@ -106,24 +105,33 @@ def enemy_turn():
     global turn
     print("Enemy attacks!")
     enemy.enabled = False
+
+    # Get Y zone for current attack
+    zone_y = ZONES[zone_system.zone_level]
+    wizard_pos = Vec3(4, zone_y - 0.5, -0.5)  # Adjusted to match visual layout
+
+    # Wizard attack animation
     attack_anim = Animation(
         'sprites/enemies/enemy attack/Wizard attack prototype',
         fps=10,
         loop=False,
-        scale=(4, 6),
-        position=(4, ZONES[zone_system.zone_level], 0),
+        scale=(2, 3),
+        position=wizard_pos,
         z=-0.5
     )
 
     def spawn_projectile(target_y):
+        start_pos = Vec3(3.5, target_y, -0.6)
+        end_pos = Vec3(-4, target_y, -0.6)
+
         projectile = Animation(
             'sprites/Generic Stuff/Wizard attack projectile',
             fps=6,
             loop=False,
-            position=(3.5, target_y, -0.6),
+            position=start_pos,
             scale=(1.5, 1.5),
         )
-        projectile.animate_position(Vec3(-4, target_y, -0.6), duration=1.2, curve=curve.linear)
+        projectile.animate_position(end_pos, duration=1.2, curve=curve.linear)
 
         def hit_player():
             if abs(player.y - target_y) < 0.3:
@@ -138,15 +146,15 @@ def enemy_turn():
 
         invoke(hit_player, delay=1.2)
 
-    # This part must remain inside enemy_turn too
+    # Randomize the 3 zones the enemy attacks
     attack_zones = random.sample(ZONES, 3)
     for i, z in enumerate(attack_zones):
         invoke(lambda z=z: spawn_projectile(z), delay=0.5 + i * 0.3)
 
+    # Cleanup and reset
     invoke(destroy, attack_anim, delay=1.4)
     invoke(set_idle_animation, delay=1.5)
     turn = 'player'
-
 
 def attack():
     global turn
@@ -157,75 +165,40 @@ def attack():
         print("Enemy is already defeated.")
         return
 
-    enemy.health_bar.value = max(0, enemy.health_bar.value - 10)
-    print("Enemy takes 10 damage!")
-    camera.shake(duration=0.15, magnitude=1.0)
-    zone_system.fuel += 1
+    print("Torchy attacks!")
 
-    ui_manager.update_ui(zone_level=zone_system.zone_level, fuel=zone_system.fuel)
-
-
-    if enemy.health_bar.value == 0:
-        print("Wizard defeated!")
-        enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
-        destroy(enemy)
-        destroy(enemy.health_bar)
-        level_system.add_xp(50)
-        spawn_new_wizard()
-
-    else:
-        turn = 'enemy'
-        invoke(enemy_turn, delay=1.0)
-def spawn_new_wizard():
-    global enemy
-    scale_factor = 1 + (level_system.level * 0.2)  # Wizard grows 10% each level
-    enemy = WizardEnemy(position=(4, ZONES[zone_system.zone_level], 0))
-    enemy.scale *= scale_factor
-    print("A stronger wizard appears!")
-    turn = 'player'
-        
-def blaze():
-    print("Torchy uses BLAZE! (not implemented yet)")
-
-def hellfire():
-    print("Torchy uses HELLFIRE! (not implemented yet)")
-
-
-def placeholder_action(name):
-    print(f"{name} action selected (not implemented)")
-
-def blast():
-    global turn
-    if turn != 'player':
-        print("It's not your turn!")
-        return
-    if not enemy.enabled:
-        print("Enemy is already defeated.")
-        return
-    print("Torchy uses BLAST!")
-    camera.shake(duration=0.3, magnitude=2.0)
-    hit_anim = Animation(
-        'sprites/enemies/enemy gets hit/Wizard getting hit',
-        fps=8,
+    # === Play punch/fireball animation ===
+    punch_anim = Animation(
+        'sprites/player1/punch/attack/Prototype fire ball attack',
+        fps=10,
         loop=False,
-        scale=(4, 6),
-        position=enemy.position,
-        z=-0.9
+        position=player.position + Vec3(0.5, 0, -0.5),
+        scale=(1.2, 1.2)
     )
-    invoke(destroy, hit_anim, delay=0.6)
-    enemy.health_bar.value = max(0, enemy.health_bar.value - 50)
-    if enemy.health_bar.value == 0:
-        print("Wizard defeated by blast!")
-        enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
-        destroy(enemy)
-        level_system.add_xp(50)
-        destroy(enemy.health_bar)
-        radial_menu.enabled = False  
-        show_reset_prompt()
-     
-    else:
-        turn = 'enemy'
-        invoke(enemy_turn, delay=1.0)
+    punch_anim.animate_position(enemy.position + Vec3(-0.5, 0, -0.5), duration=0.6, curve=curve.linear)
+
+    def on_hit():
+        destroy(punch_anim)
+        camera.shake(duration=0.15, magnitude=1.0)
+        zone_system.fuel += 1
+        ui_manager.update_ui(zone_level=zone_system.zone_level, fuel=zone_system.fuel)
+
+        enemy.health_bar.value = max(0, enemy.health_bar.value - 10)
+        print("Enemy takes 10 damage!")
+
+        if enemy.health_bar.value == 0:
+            print("Wizard defeated!")
+            enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
+            destroy(enemy)
+            destroy(enemy.health_bar)
+            level_system.add_xp(50)
+            spawn_new_wizard()
+        else:
+            global turn
+            turn = 'enemy'
+            invoke(enemy_turn, delay=1.0)
+
+    invoke(on_hit, delay=0.6)  # wait for punch to reach enemy
 
 def show_ability_radial():
     for btn in ability_buttons:
