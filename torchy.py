@@ -1,4 +1,3 @@
-
 from ursina import *
 from ursina.prefabs.health_bar import HealthBar
 from math import radians, sin, cos
@@ -14,49 +13,26 @@ from wizard_enemy import WizardEnemy
 from uimanager import UIManager
 from radialmenu import RadialMenu
 from pausemenu import PauseMenu
-from levelup import LevelSystem
+from combat import CombatController
+from player import Player  # ✅ Replaces old inline Player class
 
-
-
-class Player(Animation):
-    def __init__(self, **kwargs):
-        super().__init__(
-            'sprites/player1/idle/torchy',
-            fps=6,
-            loop=True,
-            scale=(1.5, 2),
-            z=-1,
-            **kwargs
-        )
-        self.name = 'Torchy'
-        self.hp = 100
-        self.max_hp = 100
-        self.fuel = 10
-        self.max_fuel = 10
-        self.abilities = []
-        self.xp_segments_full = 0
-        self.max_xp_segments = 5
-
-    def get_heart_count(self):
-        return self.hp // 25
-
-
-# Temporary player just to calculate zone height
+# TEMP player to calc zone height
 temp_player = Player()
 zone_system = ZoneControls(temp_player)
 
-# Now create the real player at the correct zone height
+# Real player at correct height
 player = Player(position=(-7.5, zone_system.get_zone_y() - 6, 0))
 zone_system.set_player(player)
-
 destroy(temp_player)
 
-# UI Manager using the real player
+# UI Setup
 ui_manager = UIManager(player)
 ui_manager.update_hp()
 ui_manager.update_fuel()
 ui_manager.update_xp()
 ui_manager.create_downzone_button(on_click_callback=zone_system.move_down_zone)
+
+inventory_system = InventorySystem(player, zone_system, ui_manager)
 
 # Background and music
 background = Entity(
@@ -68,162 +44,38 @@ background = Entity(
 battle_music = Audio('assets/audio/torchybeats.mp3', loop=True, autoplay=True)
 battle_music.volume = 1.0
 
-# Inventory
-inventory_system = InventorySystem(player, zone_system, ui_manager)
-
+# Enemy and Combat System
 enemy = WizardEnemy(position=(7.5, ZONES[1] - 5.3, -0.2))
+combat = CombatController(player, zone_system, ui_manager, player.add_xp, lambda: spawn_new_wizard())
+combat.set_enemy(enemy)
 
-ui_manager = UIManager(player)
-
-
-from levelup import LevelSystem
-level_system = LevelSystem(player)
-
+# Camera setup
 camera.orthographic = True
 camera.fov = 20
 camera.position = (0, 0)
 DirectionalLight(y=2, rotation=(45, -45, 0))
 
-ability_buttons = []
- 
-
+# Radial menu
 radial_options = [
-    ('Attack', lambda: attack()),
-    ('Abilities', lambda: show_ability_radial()),
-    ('Zone', lambda: zone_system.zone_action()),  # 
+    ('Attack', lambda: combat.player_attack()),
+    ('Abilities', lambda: combat.show_ability_radial()),
+    ('Zone', lambda: zone_system.zone_action()),
     ('Inventory', lambda: inventory_system.open_inventory())
-
 ]
-
 radial_menu = RadialMenu(radial_options)
 
+from wizard_enemy import StormWizard, IceWizard, PoisonWizard
 
-def set_idle_animation():
-    enemy.enabled = True
+def spawn_new_wizard():
+    global enemy, turn
+    scale_factor = 1 + (player.level * 0.2)
 
-def enemy_turn():
-    global turn
-    print("Enemy attacks!")
-    enemy.enabled = False
-
-    # Get Y zone for current attack
-    zone_y = ZONES[zone_system.zone_level]
-    wizard_pos = Vec3(4, zone_y - 0.5, -0.5)  # Adjusted to match visual layout
-
-    # Wizard attack animation
-    attack_anim = Animation(
-        'sprites/enemies/enemy attack/Wizard attack prototype',
-        fps=10,
-        loop=False,
-        scale=(2, 3),
-        position=wizard_pos,
-        z=-0.5
-    )
-
-    def spawn_projectile(target_y):
-        start_pos = Vec3(3.5, target_y, -0.6)
-        end_pos = Vec3(-4, target_y, -0.6)
-
-        projectile = Animation(
-            'sprites/Generic Stuff/Wizard attack projectile',
-            fps=6,
-            loop=False,
-            position=start_pos,
-            scale=(1.5, 1.5),
-        )
-        projectile.animate_position(end_pos, duration=1.2, curve=curve.linear)
-
-        def hit_player():
-            if abs(player.y - target_y) < 0.3:
-                player.hp = max(0, player.hp - 25)
-                ui_manager.update_hp()
-                print("Player hit in zone", ZONES.index(target_y))
-                if player.hp == 0:
-                    print("Torchy defeated!")
-                    destroy(player)
-                    show_reset_prompt()
-            destroy(projectile)
-
-        invoke(hit_player, delay=1.2)
-
-    # Randomize the 3 zones the enemy attacks
-    attack_zones = random.sample(ZONES, 3)
-    for i, z in enumerate(attack_zones):
-        invoke(lambda z=z: spawn_projectile(z), delay=0.5 + i * 0.3)
-
-    # Cleanup and reset
-    invoke(destroy, attack_anim, delay=1.4)
-    invoke(set_idle_animation, delay=1.5)
+    EnemyType = random.choice([StormWizard, IceWizard, PoisonWizard])
+    enemy = EnemyType(position=(4.5, ZONES[zone_system.zone_level] - 0.5, -1.5))
+    enemy.scale *= scale_factor
+    combat.set_enemy(enemy)
+    print(f"A {enemy.name} appears!")
     turn = 'player'
-
-def attack():
-    global turn
-    if turn != 'player':
-        print("It's not your turn!")
-        return
-    if not enemy.enabled:
-        print("Enemy is already defeated.")
-        return
-
-    print("Torchy attacks!")
-
-    # === Play punch/fireball animation ===
-    punch_anim = Animation(
-        'sprites/player1/punch/attack/Prototype fire ball attack',
-        fps=10,
-        loop=False,
-        position=player.position + Vec3(0.5, 0, -0.5),
-        scale=(1.2, 1.2)
-    )
-    punch_anim.animate_position(enemy.position + Vec3(-0.5, 0, -0.5), duration=0.6, curve=curve.linear)
-
-    def on_hit():
-        destroy(punch_anim)
-        camera.shake(duration=0.15, magnitude=1.0)
-        zone_system.fuel += 1
-        ui_manager.update_ui(zone_level=zone_system.zone_level, fuel=zone_system.fuel)
-
-        enemy.health_bar.value = max(0, enemy.health_bar.value - 10)
-        print("Enemy takes 10 damage!")
-
-        if enemy.health_bar.value == 0:
-            print("Wizard defeated!")
-            enemy.animate_scale(Vec3(0.1, 0.1, 0.1), duration=0.2, curve=curve.in_expo)
-            destroy(enemy)
-            destroy(enemy.health_bar)
-            level_system.add_xp(50)
-            spawn_new_wizard()
-        else:
-            global turn
-            turn = 'enemy'
-            invoke(enemy_turn, delay=1.0)
-
-    invoke(on_hit, delay=0.6)  # wait for punch to reach enemy
-
-def show_ability_radial():
-    for btn in ability_buttons:
-        destroy(btn)
-    ability_buttons.clear()
-
-    labels = player.abilities
-    actions_map = {
-        'Blast': blast,
-        'Blaze': blaze,
-        'Hellfire': hellfire
-    }
-
-    for i, label in enumerate(labels):
-        angle = radians(90 * i)
-        pos = Vec2(cos(angle), sin(angle)) * 0.1 + Vec2(.7, -.2)
-        btn = Button(
-            text=label,
-            scale=(.08, .08),
-            position=pos,
-            parent=camera.ui,
-            color=color.gray,
-            on_click=actions_map.get(label, lambda: print(f"{label} not implemented"))
-        )
-        ability_buttons.append(btn)
 
 
 def input(key):
@@ -231,16 +83,7 @@ def input(key):
 
 def update():
     radial_menu.update_colors()
-
-
-def show_reset_prompt():
-    ui_manager.show_message("Game Over!")
-    ui_manager.show_reset_button(reset_game)
-
-
-def reset_game():
-    application.quit()
-    os.execl(sys.executable, sys.executable, *sys.argv)
-
+    combat.update()
 pause_menu = PauseMenu()
 app.run()
+
